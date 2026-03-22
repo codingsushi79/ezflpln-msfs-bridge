@@ -96,6 +96,6 @@ If you build your **own** SimConnect client with the **MSFS SDK**, use the SDK d
 { "lat": 37.62, "lng": -122.38, "heading": 145, "altitudeFt": 4200 }
 ```
 
-Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request. `heading` is **PLANE HEADING DEGREES TRUE** from SimConnect (0–360°, clockwise from true north) for the map icon. The bridge reads it as **INT32** so the SimConnect buffer stays aligned (using FLOAT64 for heading can mis-read adjacent fields and produce bogus values such as ~289° near longitude −71°).
+Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request. `heading` is **PLANE HEADING DEGREES TRUE** (0–360°, clockwise from true north). `altitudeFt` is **PLANE ALTITUDE** in feet MSL (not the raw `STRUCT LATLONALT` altitude, which can disagree with indicated/MSL in MSFS). The bridge requests **position** (lat/lon) and **motion** (heading, ground speed, MSL altitude) in **separate** SimConnect data definitions so fields are not mis-read from a single packed buffer.
 
 Send **`trackTrueDeg`** / **`trackDeg`** only when you mean **ground track** (direction of motion); do not put nose heading in those fields. The web API maps **`trueHeadingDeg`** to **heading**, not track.

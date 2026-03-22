@@ -1,17 +1,44 @@
 import type { RecvSimObjectData } from "node-simconnect";
-import {
-  norm360,
-  payloadWithHeading,
-  type Payload,
-} from "./bridge.js";
+import { payloadWithHeading, type Payload } from "./bridge.js";
 
 /** SimConnect GROUND VELOCITY is feet per second; convert to knots. */
 const FPS_TO_KT = 0.592483801;
 
-/** Added to raw true heading from SimConnect before POST (degrees). */
-const HEADING_OFFSET_DEG = 14;
+const DEF_POS = 1;
+const DEF_MOTION = 2;
+const REQ_POS = 1;
+const REQ_MOTION = 2;
+
+/** Merged from two SimConnect packets (position vs motion) — see publish(). */
+const S = {
+  lat: undefined as number | undefined,
+  lng: undefined as number | undefined,
+  heading: undefined as number | undefined,
+  altitudeFt: undefined as number | undefined,
+  speedKt: undefined as number | undefined,
+};
 
 let latest: Payload | null = null;
+
+function resetState() {
+  S.lat = undefined;
+  S.lng = undefined;
+  S.heading = undefined;
+  S.altitudeFt = undefined;
+  S.speedKt = undefined;
+  latest = null;
+}
+
+function publish() {
+  if (!Number.isFinite(S.lat) || !Number.isFinite(S.lng)) return;
+  latest = payloadWithHeading({
+    lat: S.lat!,
+    lng: S.lng!,
+    heading: S.heading,
+    altitudeFt: S.altitudeFt,
+    speedKt: S.speedKt,
+  });
+}
 
 /** Latest user aircraft position from SimConnect, if connected. */
 export function getLiveSimPosition(): Payload | null {
@@ -21,6 +48,11 @@ export function getLiveSimPosition(): Payload | null {
 /**
  * Connect to Microsoft Flight Simulator via SimConnect and stream user aircraft
  * position. Windows + MSFS only. Safe no-op on other platforms.
+ *
+ * We use **two** data definitions / requests: packing STRUCT LATLONALT together
+ * with heading/velocity in one definition misaligns MSFS buffer layout, which
+ * produced bogus heading (~289° = −lon) and bad altitude. Position is one
+ * packet; PLANE HEADING + GROUND VELOCITY + PLANE ALTITUDE (MSL ft) is another.
  */
 export async function startSimConnectSession(
   onLog: (msg: string) => void,
@@ -39,9 +71,6 @@ export async function startSimConnectSession(
     readLatLonAlt,
   } = await import("node-simconnect");
 
-  const DEF_POS = 1;
-  const REQ_POS = 1;
-
   try {
     const { recvOpen, handle } = await open(
       "ezflpln EZ Flight Plan Bridge",
@@ -56,19 +85,23 @@ export async function startSimConnectSession(
       null,
       SimConnectDataType.LATLONALT,
     );
-    // INT32 + readInt32 — MSFS packs heading as 32-bit; using FLOAT64 misaligns
-    // the buffer so the next reads can pick up longitude bits → bogus ~289°
-    // near Boston (-71° lon). Matches node-simconnect simulationVariablesRead sample.
+
     handle.addToDataDefinition(
-      DEF_POS,
+      DEF_MOTION,
       "PLANE HEADING DEGREES TRUE",
-      "Degrees",
-      SimConnectDataType.INT32,
+      "degrees",
+      SimConnectDataType.FLOAT64,
     );
     handle.addToDataDefinition(
-      DEF_POS,
+      DEF_MOTION,
       "GROUND VELOCITY",
       "feet per second",
+      SimConnectDataType.FLOAT64,
+    );
+    handle.addToDataDefinition(
+      DEF_MOTION,
+      "PLANE ALTITUDE",
+      "feet",
       SimConnectDataType.FLOAT64,
     );
 
@@ -78,39 +111,45 @@ export async function startSimConnectSession(
       SimConnectConstants.OBJECT_ID_USER,
       SimConnectPeriod.SECOND,
     );
+    handle.requestDataOnSimObject(
+      REQ_MOTION,
+      DEF_MOTION,
+      SimConnectConstants.OBJECT_ID_USER,
+      SimConnectPeriod.SECOND,
+    );
 
     const onData = (recv: RecvSimObjectData) => {
-      if (recv.requestID !== REQ_POS) return;
       try {
-        const pos = readLatLonAlt(recv.data);
-        const headingRaw = recv.data.readInt32();
-        const fps = recv.data.readFloat64();
-        let heading: number | undefined = Number.isFinite(headingRaw)
-          ? ((headingRaw % 360) + 360) % 360
-          : undefined;
-        if (heading !== undefined) {
-          const lonH = ((pos.longitude % 360) + 360) % 360;
-          if (Math.abs(heading - lonH) < 0.75) {
-            heading = undefined;
-          } else {
-            heading = norm360(heading + HEADING_OFFSET_DEG);
-          }
+        if (recv.requestID === REQ_POS) {
+          const pos = readLatLonAlt(recv.data);
+          S.lat = pos.latitude;
+          S.lng = pos.longitude;
+          publish();
+          return;
         }
-        const speedKt = Number.isFinite(fps) ? fps * FPS_TO_KT : undefined;
-        latest = payloadWithHeading({
-          lat: pos.latitude,
-          lng: pos.longitude,
-          heading,
-          altitudeFt: pos.altitude,
-          speedKt,
-        });
+        if (recv.requestID === REQ_MOTION) {
+          const headingRaw = recv.data.readFloat64();
+          const fps = recv.data.readFloat64();
+          const altFt = recv.data.readFloat64();
+          if (Number.isFinite(headingRaw)) {
+            S.heading = ((headingRaw % 360) + 360) % 360;
+          }
+          if (Number.isFinite(fps)) {
+            S.speedKt = fps * FPS_TO_KT;
+          }
+          if (Number.isFinite(altFt)) {
+            S.altitudeFt = altFt;
+          }
+          publish();
+          return;
+        }
       } catch {
         /* ignore malformed packets */
       }
     };
 
     const onEnd = () => {
-      latest = null;
+      resetState();
       onLog("SimConnect: connection to simulator ended.");
     };
 
@@ -127,7 +166,7 @@ export async function startSimConnectSession(
       } catch {
         /* ignore */
       }
-      latest = null;
+      resetState();
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

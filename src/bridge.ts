@@ -15,7 +15,7 @@ export type Payload = {
    * it if another client supplies it.
    */
   trackTrueDeg?: number;
-  /** Height / altitude MSL in feet (from sim). */
+  /** Altitude MSL in feet (`PLANE ALTITUDE` from the bridge). */
   altitudeFt?: number;
   /** Ground speed in knots (from SimConnect `GROUND VELOCITY`). */
   speedKt?: number;
