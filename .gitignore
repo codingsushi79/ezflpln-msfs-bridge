@@ -1,5 +1,12 @@
+# Dependencies
 node_modules/
+
+# Builds / generated
 dist/
 build/
 dist-electron/
 release/
+
+# OS / editor
+.DS_Store
+*.log
