@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# Builds / generated
+# Builds / generated (do NOT add native/ — EzflplnBridge.dll is committed for GitHub raw download)
 dist/
 build/
 dist-electron/
