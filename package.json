@@ -1,0 +1,25 @@
+{
+  "name": "ezflpln-msfs-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "demo": "cross-env DEMO_ORBIT=1 tsx src/index.ts",
+    "demo:build": "cross-env DEMO_ORBIT=1 node dist/index.js",
+    "bundle:cjs": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=cjs --outfile=build/bridge.cjs",
+    "build:exe": "npm run bundle:cjs && pkg build/bridge.cjs --targets node18-win-x64 --output release/ezflpln-msfs-bridge.exe"
+  },
+  "dependencies": {
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "cross-env": "^7.0.3",
+    "esbuild": "^0.27.4",
+    "pkg": "^5.8.1",
+    "typescript": "^5"
+  }
+}
