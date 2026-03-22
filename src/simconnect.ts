@@ -1,8 +1,15 @@
 import type { RecvSimObjectData } from "node-simconnect";
-import { payloadWithHeading, type Payload } from "./bridge.js";
+import {
+  norm360,
+  payloadWithHeading,
+  type Payload,
+} from "./bridge.js";
 
 /** SimConnect GROUND VELOCITY is feet per second; convert to knots. */
 const FPS_TO_KT = 0.592483801;
+
+/** Added to raw true heading from SimConnect before POST (degrees). */
+const HEADING_OFFSET_DEG = 14;
 
 let latest: Payload | null = null;
 
@@ -85,6 +92,8 @@ export async function startSimConnectSession(
           const lonH = ((pos.longitude % 360) + 360) % 360;
           if (Math.abs(heading - lonH) < 0.75) {
             heading = undefined;
+          } else {
+            heading = norm360(heading + HEADING_OFFSET_DEG);
           }
         }
         const speedKt = Number.isFinite(fps) ? fps * FPS_TO_KT : undefined;
