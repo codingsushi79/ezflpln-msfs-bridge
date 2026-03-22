@@ -15,19 +15,19 @@ The desktop build is an **Electron** app with a window (not a bare console).
 
 2. The portable executable is under **`release/`** (name like `EZ Flight Plan Bridge 0.1.0.exe`). Copy that file anywhere and double-click to run.
 
-3. In the app: set your **ezflpln URL**, sign in on the site and **Generate bridge code**, enter the code and click **Link account**, then **Start sending**. Use **Demo orbit** to test the map without the simulator. With demo off on **Windows**, the app uses **[node-simconnect](https://www.npmjs.com/package/node-simconnect)** to read **live** lat/lon/heading/altitude from **MSFS** via SimConnect (start the sim first).
+3. In the app: set your **ezflpln URL**, sign in on the site and **Generate bridge code**, enter the code once and click **Link account**. The token is stored under **`%USERPROFILE%\.ezflpln\token`** and the URL is remembered in app config — you normally **do not need to link again** on the same PC. Then **Start sending**. Use **Demo orbit** to test without the sim. With demo off on **Windows**, the app uses **[node-simconnect](https://www.npmjs.com/package/node-simconnect)** for live position (start MSFS first, or use **Launch MSFS … (Steam)** in the app).
 
 ### Optional: MSFS addon DLL from GitHub
 
-The main program can download a native **DLL** from the public repo **[codingsushi79/ezflpln-msfs-bridge](https://github.com/codingsushi79/ezflpln-msfs-bridge)** into your **Community** folder:
+The app downloads **`EzflplnBridge.dll`** from **[codingsushi79/ezflpln-msfs-bridge](https://github.com/codingsushi79/ezflpln-msfs-bridge)** into a folder under your chosen **MSFS data path**.
 
-1. In the app, set **MSFS Community folder** (Browse or paste the path to the `Community` directory).
-2. Click **Download addon DLL from GitHub**. The app fetches  
+1. **MSFS folder** defaults to **`%APPDATA%\Microsoft Flight Simulator`** (i.e. `C:\Users\<you>\AppData\Roaming\Microsoft Flight Simulator`). Use **Use default folder** or Browse / paste another path.
+2. Click **Download DLL from GitHub**. The app fetches  
    `https://raw.githubusercontent.com/codingsushi79/ezflpln-msfs-bridge/main/native/EzflplnBridge.dll`  
    and writes  
-   `<Community>/ezflpln-msfs-bridge/EzflplnBridge.dll`.
+   `<that folder>\ezflpln-msfs-bridge\EzflplnBridge.dll`.
 
-You must **build and commit** `native/EzflplnBridge.dll` (or publish it on that path) for the download to succeed; see [`native/README.md`](native/README.md). The bridge still uses **SimConnect from the desktop** for live position; the DLL is for your future in-sim / WASM integration.
+See [`native/README.md`](native/README.md). The bridge uses **SimConnect from the desktop** for the map; this DLL is for optional in-sim integration. The app **does not inject** code into the flight simulator process — it only opens MSFS via **Steam** (`steam://rungameid/…`).
 
 **Develop / preview the UI on Mac or Linux:**
 

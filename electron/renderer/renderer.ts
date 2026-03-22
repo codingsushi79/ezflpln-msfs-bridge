@@ -1,15 +1,17 @@
+type EzflState = {
+  baseUrl: string;
+  running: boolean;
+  demoOrbit: boolean;
+  hasToken: boolean;
+  intervalMs: number;
+  msfsDataPath: string;
+  defaultMsfsRoaming: string | null;
+};
+
 type EzflApi = {
-  getState: () => Promise<{
-    baseUrl: string;
-    running: boolean;
-    demoOrbit: boolean;
-    hasToken: boolean;
-    intervalMs: number;
-  }>;
-  pair: (
-    baseUrl: string,
-    code: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
+  getState: () => Promise<EzflState>;
+  pair: (baseUrl: string, code: string) => Promise<{ ok: boolean; error?: string }>;
+  clearSavedLogin: () => Promise<{ ok: boolean }>;
   start: (
     baseUrl: string,
     demoOrbit: boolean,
@@ -19,6 +21,11 @@ type EzflApi = {
   onLog: (fn: (line: string) => void) => () => void;
   getMsfsPath: () => Promise<string | null>;
   setMsfsPath: (dir: string) => Promise<void>;
+  useDefaultMsfsPath: () => Promise<{
+    ok: boolean;
+    error?: string;
+    path?: string;
+  }>;
   browseMsfsFolder: () => Promise<string | null>;
   downloadAddonDll: () => Promise<{
     ok: boolean;
@@ -31,6 +38,7 @@ type EzflApi = {
     installFolder: string;
     dllFile: string;
   }>;
+  launchMsfsSteam: (edition: "2020" | "2024") => Promise<{ ok: boolean }>;
 };
 
 declare global {
@@ -52,6 +60,29 @@ function appendLog(line: string): void {
   log.scrollTop = log.scrollHeight;
 }
 
+function applyLinkedUi(
+  hasToken: boolean,
+  linkedStatus: HTMLElement,
+  btnClear: HTMLButtonElement,
+  codeEl: HTMLInputElement,
+): void {
+  if (hasToken) {
+    linkedStatus.textContent =
+      "Linked on this PC — your token is saved. You do not need a new code unless you clear login.";
+    linkedStatus.classList.remove("muted");
+    linkedStatus.classList.add("ok");
+    btnClear.hidden = false;
+    codeEl.placeholder = "Optional — new code only if you cleared login";
+  } else {
+    linkedStatus.textContent =
+      "Not linked yet — enter a bridge code from the website once.";
+    linkedStatus.classList.add("muted");
+    linkedStatus.classList.remove("ok");
+    btnClear.hidden = true;
+    codeEl.placeholder = "6 characters";
+  }
+}
+
 async function init(): Promise<void> {
   const api = window.ezflpln;
   const baseUrlEl = $("baseUrl") as HTMLInputElement;
@@ -64,11 +95,30 @@ async function init(): Promise<void> {
   const openSite = $("openSite") as HTMLButtonElement;
   const msfsPathEl = $("msfsPath") as HTMLInputElement;
   const btnBrowseMsfs = $("btnBrowseMsfs") as HTMLButtonElement;
+  const btnDefaultMsfs = $("btnDefaultMsfs") as HTMLButtonElement;
   const btnDownloadDll = $("btnDownloadDll") as HTMLButtonElement;
   const openRepo = $("openRepo") as HTMLButtonElement;
+  const linkedStatus = $("linkedStatus");
+  const btnClearLogin = $("btnClearLogin") as HTMLButtonElement;
+  const btnSteam2020 = $("btnSteam2020") as HTMLButtonElement;
+  const btnSteam2024 = $("btnSteam2024") as HTMLButtonElement;
 
-  const savedPath = await api.getMsfsPath();
-  if (savedPath) msfsPathEl.value = savedPath;
+  const state = await api.getState();
+  baseUrlEl.value = state.baseUrl;
+  demoEl.checked = state.demoOrbit;
+  msfsPathEl.value = state.msfsDataPath;
+  applyLinkedUi(state.hasToken, linkedStatus, btnClearLogin, codeEl);
+
+  if (state.running) {
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    statusEl.textContent = "Sending position…";
+  }
+  if (state.hasToken) {
+    appendLog("Saved token on this PC — Start sending without pairing again.");
+  }
+
+  api.onLog((line) => appendLog(line));
 
   msfsPathEl.addEventListener("blur", () => {
     void api.setMsfsPath(msfsPathEl.value);
@@ -79,6 +129,16 @@ async function init(): Promise<void> {
     if (p) msfsPathEl.value = p;
   });
 
+  btnDefaultMsfs.addEventListener("click", async () => {
+    const r = await api.useDefaultMsfsPath();
+    if (r.ok && r.path) {
+      msfsPathEl.value = r.path;
+      appendLog(`MSFS folder set to default: ${r.path}`);
+    } else {
+      appendLog(r.error ?? "Could not set default folder.");
+    }
+  });
+
   btnDownloadDll.addEventListener("click", async () => {
     await api.setMsfsPath(msfsPathEl.value);
     btnDownloadDll.disabled = true;
@@ -86,7 +146,7 @@ async function init(): Promise<void> {
       const r = await api.downloadAddonDll();
       if (r.ok && r.savedPath) {
         appendLog(`DLL saved: ${r.savedPath}`);
-        statusEl.textContent = "Addon DLL installed";
+        statusEl.textContent = "DLL installed";
       } else {
         appendLog(r.error ?? "Download failed");
         statusEl.textContent = r.error ?? "Download failed";
@@ -101,19 +161,19 @@ async function init(): Promise<void> {
     await api.openExternal(info.repoUrl);
   });
 
-  const state = await api.getState();
-  baseUrlEl.value = state.baseUrl;
-  demoEl.checked = state.demoOrbit;
-  if (state.running) {
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-    statusEl.textContent = "Sending position…";
-  }
-  if (state.hasToken) {
-    appendLog("Saved token found — you can start or link again.");
-  }
+  btnClearLogin.addEventListener("click", async () => {
+    await api.clearSavedLogin();
+    const s = await api.getState();
+    applyLinkedUi(s.hasToken, linkedStatus, btnClearLogin, codeEl);
+    statusEl.textContent = "Login cleared";
+  });
 
-  api.onLog((line) => appendLog(line));
+  btnSteam2020.addEventListener("click", () => {
+    void api.launchMsfsSteam("2020");
+  });
+  btnSteam2024.addEventListener("click", () => {
+    void api.launchMsfsSteam("2024");
+  });
 
   codeEl.addEventListener("input", () => {
     codeEl.value = codeEl.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -138,8 +198,13 @@ async function init(): Promise<void> {
         return;
       }
       const r = await api.pair(base, code);
-      if (r.ok) statusEl.textContent = "Linked — ready to send";
-      else statusEl.textContent = r.error ?? "Pair failed";
+      if (r.ok) {
+        statusEl.textContent = "Linked — ready to send";
+        const s = await api.getState();
+        applyLinkedUi(s.hasToken, linkedStatus, btnClearLogin, codeEl);
+      } else {
+        statusEl.textContent = r.error ?? "Pair failed";
+      }
     } finally {
       btnPair.disabled = false;
     }

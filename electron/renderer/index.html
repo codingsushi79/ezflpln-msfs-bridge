@@ -34,18 +34,38 @@
         </button>
       </section>
 
+      <section class="card" id="linkedCard">
+        <p class="label">Account on this PC</p>
+        <p id="linkedStatus" class="linked-status muted">
+          Not linked yet — use a bridge code below once.
+        </p>
+        <button
+          type="button"
+          class="btn btn-outline btn-small"
+          id="btnClearLogin"
+          hidden
+        >
+          Clear saved login
+        </button>
+      </section>
+
       <section class="card">
-        <label class="label" for="msfsPath">MSFS Community folder</label>
+        <label class="label" for="msfsPath">MSFS folder</label>
         <p class="hint compact">
-          Select the <strong>Community</strong> folder (Store or Steam install). The app
-          downloads the addon DLL from GitHub into a subfolder there.
+          Default on Windows:
+          <code class="code-inline">%APPDATA%\Microsoft Flight Simulator</code>
+          (i.e.
+          <code class="code-inline">C:\Users\…\AppData\Roaming\Microsoft Flight Simulator</code>).
+          The addon DLL is saved to
+          <code class="code-inline">…\ezflpln-msfs-bridge\EzflplnBridge.dll</code>
+          inside that folder.
         </p>
         <div class="row-input">
           <input
             id="msfsPath"
             type="text"
             class="input mono small"
-            placeholder="e.g. …\Community"
+            placeholder="Paste path or use Browse / default"
             spellcheck="false"
             autocomplete="off"
           />
@@ -54,17 +74,25 @@
           </button>
         </div>
         <div class="addon-actions">
+          <button type="button" class="btn btn-secondary" id="btnDefaultMsfs">
+            Use default folder
+          </button>
           <button type="button" class="btn btn-secondary" id="btnDownloadDll">
-            Download addon DLL from GitHub
+            Download DLL from GitHub
           </button>
           <button type="button" class="link-small" id="openRepo">
-            Open repo
+            Repo
           </button>
         </div>
       </section>
 
       <section class="card">
-        <label class="label" for="code">Bridge code (from website → signed in)</label>
+        <label class="label" for="code">Bridge code (one-time per PC)</label>
+        <p class="hint compact">
+          From the website while signed in → Generate bridge code. After linking,
+          your token stays in
+          <code class="code-inline">%USERPROFILE%\.ezflpln\token</code>.
+        </p>
         <input
           id="code"
           type="text"
@@ -86,9 +114,24 @@
         </label>
         <p class="hint">
           With demo off on <strong>Windows</strong>, position comes from
-          <strong>SimConnect</strong> (start MSFS first). If the sim is not
-          running, a placeholder position is sent until SimConnect connects.
+          <strong>SimConnect</strong>. Start MSFS (see below) first.
         </p>
+      </section>
+
+      <section class="card">
+        <p class="label">Microsoft Flight Simulator (Steam)</p>
+        <p class="hint compact">
+          Starts the sim via the Steam protocol. Install the DLL above first if
+          you rely on it; the bridge does not inject into the game process.
+        </p>
+        <div class="steam-row">
+          <button type="button" class="btn btn-secondary" id="btnSteam2020">
+            Launch MSFS 2020 (Steam)
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnSteam2024">
+            Launch MSFS 2024 (Steam)
+          </button>
+        </div>
       </section>
 
       <div class="actions">

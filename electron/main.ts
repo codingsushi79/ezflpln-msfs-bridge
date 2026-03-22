@@ -16,14 +16,27 @@ import {
   getRepoPageUrl,
 } from "../src/addon-github.js";
 import {
+  clearSavedToken,
   getIntervalMs,
   redeemCodeAndSave,
   resolveTokenFromEnvOrFile,
   startPositionLoop,
 } from "../src/bridge.js";
+import {
+  getDefaultMsfsRoamingPath,
+  STEAM_APP_MSFS_2020,
+  STEAM_APP_MSFS_2024,
+} from "../src/msfs-paths.js";
 import { getLiveSimPosition, startSimConnectSession } from "../src/simconnect.js";
 
-type BridgeConfig = { msfsCommunityPath?: string };
+type BridgeConfig = {
+  /** MSFS folder, usually %APPDATA%\\Microsoft Flight Simulator */
+  msfsDataPath?: string;
+  /** @deprecated use msfsDataPath — still read for migration */
+  msfsCommunityPath?: string;
+  /** Remember ezflpln origin after pairing */
+  ezflplnBaseUrl?: string;
+};
 
 function configPath(): string {
   return path.join(app.getPath("userData"), "bridge-config.json");
@@ -41,6 +54,23 @@ async function loadConfig(): Promise<BridgeConfig> {
 async function saveConfig(cfg: BridgeConfig): Promise<void> {
   await fs.mkdir(path.dirname(configPath()), { recursive: true });
   await fs.writeFile(configPath(), JSON.stringify(cfg, null, 2), "utf8");
+}
+
+/** Effective MSFS root for DLL install (saved path, legacy key, or Windows default). */
+async function getMsfsRootForInstall(): Promise<string | null> {
+  const c = await loadConfig();
+  const explicit =
+    c.msfsDataPath?.trim() || c.msfsCommunityPath?.trim() || "";
+  if (explicit) return explicit;
+  return getDefaultMsfsRoamingPath();
+}
+
+function resolveBaseUrlFromEnvAndConfig(cfg: BridgeConfig): string {
+  const env = process.env.EZFLPLN_URL?.replace(/\/$/, "")?.trim();
+  if (env) return env;
+  const saved = cfg.ezflplnBaseUrl?.replace(/\/$/, "")?.trim();
+  if (saved) return saved;
+  return "http://localhost:3000";
 }
 
 function isAllowedGithubDllUrl(url: string): boolean {
@@ -74,10 +104,10 @@ function sendLog(line: string): void {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 460,
-    height: 780,
+    width: 480,
+    height: 860,
     minWidth: 400,
-    minHeight: 640,
+    minHeight: 700,
     show: false,
     title: "EZ Flight Plan Bridge",
     backgroundColor: "#0f172a",
@@ -107,14 +137,21 @@ app.on("window-all-closed", () => {
 });
 
 ipcMain.handle("ezfl:get-state", async () => {
+  const cfg = await loadConfig();
   const hasToken = Boolean(await resolveTokenFromEnvOrFile());
+  const defaultRoaming = getDefaultMsfsRoamingPath();
+  const savedMsfs =
+    cfg.msfsDataPath?.trim() || cfg.msfsCommunityPath?.trim() || "";
+  const msfsDisplay = savedMsfs || defaultRoaming || "";
   return {
-    baseUrl: process.env.EZFLPLN_URL?.replace(/\/$/, "") ?? "http://localhost:3000",
+    baseUrl: resolveBaseUrlFromEnvAndConfig(cfg),
     running,
     demoOrbit:
       process.env.DEMO_ORBIT === "1" || process.env.DEMO_ORBIT === "true",
     hasToken,
     intervalMs: getIntervalMs(),
+    msfsDataPath: msfsDisplay,
+    defaultMsfsRoaming: defaultRoaming,
   };
 });
 
@@ -125,7 +162,12 @@ ipcMain.handle(
       const base = args.baseUrl.replace(/\/$/, "").trim();
       await redeemCodeAndSave(base, args.code.trim());
       process.env.EZFLPLN_URL = base;
-      sendLog("Linked — token saved. You can start sending.");
+      const prev = await loadConfig();
+      await saveConfig({
+        ...prev,
+        ezflplnBaseUrl: base,
+      });
+      sendLog("Linked — token saved on this PC. You will not need a new code unless you clear login.");
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -135,6 +177,12 @@ ipcMain.handle(
   },
 );
 
+ipcMain.handle("ezfl:clear-saved-login", async () => {
+  await clearSavedToken();
+  sendLog("Saved login cleared — enter a new bridge code to link again.");
+  return { ok: true };
+});
+
 ipcMain.handle(
   "ezfl:start",
   async (_, args: { baseUrl: string; demoOrbit: boolean }) => {
@@ -142,6 +190,8 @@ ipcMain.handle(
     const baseUrl = args.baseUrl.replace(/\/$/, "").trim();
     process.env.EZFLPLN_URL = baseUrl;
     process.env.DEMO_ORBIT = args.demoOrbit ? "1" : "0";
+    const prev = await loadConfig();
+    await saveConfig({ ...prev, ezflplnBaseUrl: baseUrl });
     const token = await resolveTokenFromEnvOrFile();
     if (!token) {
       return {
@@ -192,26 +242,46 @@ ipcMain.handle("ezfl:open-external", async (_, url: string) => {
   await shell.openExternal(url);
 });
 
+ipcMain.handle("ezfl:launch-msfs-steam", async (_, edition: "2020" | "2024") => {
+  const id = edition === "2024" ? STEAM_APP_MSFS_2024 : STEAM_APP_MSFS_2020;
+  const url = `steam://rungameid/${id}`;
+  await shell.openExternal(url);
+  sendLog(`Opening Steam → MSFS (${edition === "2024" ? "2024" : "2020"})…`);
+  return { ok: true };
+});
+
 ipcMain.handle("ezfl:get-msfs-path", async () => {
-  const c = await loadConfig();
-  return c.msfsCommunityPath ?? null;
+  const root = await getMsfsRootForInstall();
+  return root;
 });
 
 ipcMain.handle("ezfl:set-msfs-path", async (_, dir: string) => {
   const c = await loadConfig();
-  c.msfsCommunityPath = dir.trim();
+  c.msfsDataPath = dir.trim();
+  delete c.msfsCommunityPath;
   await saveConfig(c);
+});
+
+ipcMain.handle("ezfl:use-default-msfs-path", async () => {
+  const d = getDefaultMsfsRoamingPath();
+  if (!d) {
+    return { ok: false, error: "Default path is only available on Windows." };
+  }
+  const c = await loadConfig();
+  await saveConfig({ ...c, msfsDataPath: d });
+  return { ok: true, path: d };
 });
 
 ipcMain.handle("ezfl:browse-msfs-folder", async () => {
   const win = BrowserWindow.getFocusedWindow() ?? mainWindow;
   const r = await dialog.showOpenDialog(win ?? undefined, {
     properties: ["openDirectory"],
-    title: "Select MSFS Community folder",
+    title: "Select Microsoft Flight Simulator folder",
   });
   if (r.canceled || !r.filePaths[0]) return null;
   const p = r.filePaths[0];
-  await saveConfig({ ...(await loadConfig()), msfsCommunityPath: p });
+  const c = await loadConfig();
+  await saveConfig({ ...c, msfsDataPath: p });
   return p;
 });
 
@@ -223,12 +293,12 @@ ipcMain.handle(
     if (!isAllowedGithubDllUrl(url)) {
       return { ok: false, error: "Invalid download URL configuration." };
     }
-    const c = await loadConfig();
-    const root = c.msfsCommunityPath?.trim();
+    const root = (await getMsfsRootForInstall())?.trim();
     if (!root) {
       return {
         ok: false,
-        error: "Set your MSFS Community folder first (Browse or paste path).",
+        error:
+          "Set the MSFS folder (or use “Use default folder” on Windows).",
       };
     }
     if (!existsSync(root)) {

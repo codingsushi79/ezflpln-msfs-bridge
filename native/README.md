@@ -17,12 +17,13 @@ The app downloads from:
 
 The app writes:
 
-`<Your Community folder>/ezflpln-msfs-bridge/EzflplnBridge.dll`
+`<Your selected MSFS folder>/ezflpln-msfs-bridge/EzflplnBridge.dll`
 
-Typical **Community** paths:
+Default **MSFS folder** in the app (Windows):
 
-- **Microsoft Store:** `%LOCALAPPDATA%\Packages\Microsoft.FlightSimulator_8wekyb3d8bbwe\LocalCache\Packages\Community`
-- **Steam:** `...\Steam\steamapps\common\MicrosoftFlightSimulator\Community`
+- `%APPDATA%\Microsoft Flight Simulator` → `C:\Users\<you>\AppData\Roaming\Microsoft Flight Simulator`
+
+You can still point the app at another directory if you keep addons elsewhere.
 
 ## Building the DLL
 

@@ -3,7 +3,7 @@ export const GITHUB_REPO_OWNER = "codingsushi79";
 export const GITHUB_REPO_NAME = "ezflpln-msfs-bridge";
 /** Path inside the repo to the DLL (main branch). */
 export const DLL_PATH_IN_REPO = "native/EzflplnBridge.dll";
-/** Subfolder created under the user-selected MSFS Community folder. */
+/** Subfolder under the user-selected MSFS data folder (Roaming path or custom). */
 export const ADDON_INSTALL_FOLDER = "ezflpln-msfs-bridge";
 export const DLL_FILENAME = "EzflplnBridge.dll";
 

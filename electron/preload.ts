@@ -1,14 +1,19 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+export type EzflState = {
+  baseUrl: string;
+  running: boolean;
+  demoOrbit: boolean;
+  hasToken: boolean;
+  intervalMs: number;
+  msfsDataPath: string;
+  defaultMsfsRoaming: string | null;
+};
+
 export type EzflApi = {
-  getState: () => Promise<{
-    baseUrl: string;
-    running: boolean;
-    demoOrbit: boolean;
-    hasToken: boolean;
-    intervalMs: number;
-  }>;
+  getState: () => Promise<EzflState>;
   pair: (baseUrl: string, code: string) => Promise<{ ok: boolean; error?: string }>;
+  clearSavedLogin: () => Promise<{ ok: boolean }>;
   start: (
     baseUrl: string,
     demoOrbit: boolean,
@@ -18,6 +23,11 @@ export type EzflApi = {
   onLog: (fn: (line: string) => void) => () => void;
   getMsfsPath: () => Promise<string | null>;
   setMsfsPath: (dir: string) => Promise<void>;
+  useDefaultMsfsPath: () => Promise<{
+    ok: boolean;
+    error?: string;
+    path?: string;
+  }>;
   browseMsfsFolder: () => Promise<string | null>;
   downloadAddonDll: () => Promise<{
     ok: boolean;
@@ -30,11 +40,13 @@ export type EzflApi = {
     installFolder: string;
     dllFile: string;
   }>;
+  launchMsfsSteam: (edition: "2020" | "2024") => Promise<{ ok: boolean }>;
 };
 
 const api: EzflApi = {
   getState: () => ipcRenderer.invoke("ezfl:get-state"),
   pair: (baseUrl, code) => ipcRenderer.invoke("ezfl:pair", { baseUrl, code }),
+  clearSavedLogin: () => ipcRenderer.invoke("ezfl:clear-saved-login"),
   start: (baseUrl, demoOrbit) =>
     ipcRenderer.invoke("ezfl:start", { baseUrl, demoOrbit }),
   stop: () => ipcRenderer.invoke("ezfl:stop"),
@@ -46,9 +58,12 @@ const api: EzflApi = {
   },
   getMsfsPath: () => ipcRenderer.invoke("ezfl:get-msfs-path"),
   setMsfsPath: (dir) => ipcRenderer.invoke("ezfl:set-msfs-path", dir),
+  useDefaultMsfsPath: () => ipcRenderer.invoke("ezfl:use-default-msfs-path"),
   browseMsfsFolder: () => ipcRenderer.invoke("ezfl:browse-msfs-folder"),
   downloadAddonDll: () => ipcRenderer.invoke("ezfl:download-addon-dll"),
   getAddonInfo: () => ipcRenderer.invoke("ezfl:get-addon-info"),
+  launchMsfsSteam: (edition) =>
+    ipcRenderer.invoke("ezfl:launch-msfs-steam", edition),
 };
 
 contextBridge.exposeInMainWorld("ezflpln", api);

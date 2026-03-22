@@ -191,6 +191,44 @@ h1 {
   margin-top: 10px;
 }
 
+.code-inline {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.72em;
+  color: #cbd5e1;
+  word-break: break-all;
+}
+
+.linked-status {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.linked-status.ok {
+  color: #6ee7b7;
+}
+
+.linked-status.muted {
+  color: #94a3b8;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.steam-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.steam-row .btn {
+  flex: 1;
+  min-width: 140px;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

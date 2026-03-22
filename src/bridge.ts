@@ -13,6 +13,15 @@ export const TOKEN_PATH =
   process.env.EZFLPLN_TOKEN_FILE ??
   path.join(homedir(), ".ezflpln", "token");
 
+/** Remove saved bridge token (user must pair again). */
+export async function clearSavedToken(): Promise<void> {
+  try {
+    await fs.unlink(TOKEN_PATH);
+  } catch {
+    /* missing or unreadable */
+  }
+}
+
 export function getBaseUrl(): string {
   return (
     process.env.EZFLPLN_URL?.replace(/\/$/, "") ?? "http://localhost:3000"
