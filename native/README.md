@@ -6,13 +6,12 @@ The **EZ Flight Plan Bridge** desktop app can download this DLL from GitHub into
 
 | Path | Purpose |
 |------|---------|
-| `native/EzflplnBridge.dll` | Built native module (you build and commit, or attach to Releases). |
+| `native/EzflplnBridge.dll` | **64-bit Windows PE DLL** (commit this file so raw GitHub download works). |
+| `native/src/EzflplnBridge.c` | Source: `DllMain` + exported `EzflplnBridge_GetVersion()`. |
 
 The app downloads from:
 
 `https://raw.githubusercontent.com/codingsushi79/ezflpln-msfs-bridge/main/native/EzflplnBridge.dll`
-
-Until that file exists on `main`, the in-app downloader will return **404** — build the DLL, add it here, push, then use **Download addon DLL from GitHub** again.
 
 ## Install location on disk
 
@@ -27,6 +26,13 @@ Typical **Community** paths:
 
 ## Building the DLL
 
-Implement your WASM / SimConnect / gauge logic in a Visual Studio **C++ DLL** project targeting **x64**, output name **`EzflplnBridge.dll`**, then copy it to `native/` in this repo before publishing.
+**macOS (Homebrew MinGW, cross-compile):**
 
-This repository does not yet ship a prebuilt DLL; the bridge still uses **node-simconnect** from the desktop process for live position when demo mode is off on Windows.
+```bash
+chmod +x native/build-mingw.sh
+./native/build-mingw.sh
+```
+
+**Windows:** run `native\build-windows.bat` (MinGW `gcc` on PATH) or compile `native\src\EzflplnBridge.c` with MSVC as a **x64** DLL named `EzflplnBridge.dll` in `native\`.
+
+The bridge still uses **node-simconnect** in the desktop app for live position; extend this DLL for in-sim integration as needed.
