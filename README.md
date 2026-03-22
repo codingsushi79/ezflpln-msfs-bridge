@@ -96,7 +96,6 @@ If you build your **own** SimConnect client with the **MSFS SDK**, use the SDK d
 {
   "lat": 37.62,
   "lng": -122.38,
-  "trackTrueDeg": 145,
   "heading": 145,
   "altitudeFt": 4200,
   "speedKt": 118
@@ -105,5 +104,6 @@ If you build your **own** SimConnect client with the **MSFS SDK**, use the SDK d
 
 Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request.
 
-- **`trackTrueDeg`**: true track over ground (0–360°, clockwise from true north)—direction of motion, used for the map chevron. SimConnect uses **GPS GROUND TRUE TRACK**; **GROUND VELOCITY** is sent as **`speedKt`** (ground speed, knots). **`heading`** is duplicated to the same value for older clients that only read `heading`.
-- **`altitudeFt`**: height MSL (feet). You may also send **`heightFt`** as an alias on the server.
+- **`heading`**: true heading of the aircraft nose (0–360°, clockwise from true north). SimConnect uses **`PLANE HEADING DEGREES TRUE`** so the map icon matches where the nose points.
+- **`speedKt`**: ground speed in knots from **`GROUND VELOCITY`** (ft/s converted).
+- **`altitudeFt`**: height MSL (feet). The server also accepts **`heightFt`** as an alias.

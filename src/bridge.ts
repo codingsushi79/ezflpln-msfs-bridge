@@ -6,18 +6,18 @@ export type Payload = {
   lat: number;
   lng: number;
   /**
-   * True track over ground (degrees true): direction the aircraft is moving,
-   * not nose heading. Preferred for the map chevron.
-   */
-  trackTrueDeg?: number;
-  /**
-   * Legacy alias: same numeric value as `trackTrueDeg` when sent by this
-   * bridge (older clients may only read `heading`).
+   * True heading of the aircraft nose (degrees true, 0–360). Used for map
+   * icon rotation; from SimConnect `PLANE HEADING DEGREES TRUE`.
    */
   heading?: number;
+  /**
+   * True track over ground (optional). Not sent by the bridge; server may use
+   * it if another client supplies it.
+   */
+  trackTrueDeg?: number;
   /** Height / altitude MSL in feet (from sim). */
   altitudeFt?: number;
-  /** Ground speed in knots. */
+  /** Ground speed in knots (from SimConnect `GROUND VELOCITY`). */
   speedKt?: number;
 };
 
@@ -25,26 +25,21 @@ export function norm360(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
 
-/** Normalize lat/lng payload and duplicate track onto `heading` for legacy clients. */
-export function payloadWithTrack(
+/**
+ * Normalize nose heading only (no `trackTrueDeg`) so the map aligns with the
+ * aircraft nose, not ground track.
+ */
+export function payloadWithHeading(
   base: Omit<Payload, "trackTrueDeg" | "heading"> & {
-    trackTrueDeg?: number;
     heading?: number;
+    trackTrueDeg?: number;
   },
 ): Payload {
-  const track =
-    base.trackTrueDeg !== undefined && Number.isFinite(base.trackTrueDeg)
-      ? norm360(base.trackTrueDeg)
-      : base.heading !== undefined && Number.isFinite(base.heading)
-        ? norm360(base.heading)
-        : undefined;
-  const { trackTrueDeg: _t, heading: _h, ...rest } = base;
-  if (track === undefined) return rest as Payload;
-  return {
-    ...rest,
-    trackTrueDeg: track,
-    heading: track,
-  };
+  const { trackTrueDeg: _t, heading: rawH, ...rest } = base;
+  const h =
+    rawH !== undefined && Number.isFinite(rawH) ? norm360(rawH) : undefined;
+  if (h === undefined) return rest as Payload;
+  return { ...rest, heading: h };
 }
 
 export const TOKEN_PATH =
@@ -85,11 +80,11 @@ function getDemoOrbit(t: number): Payload {
   const lng =
     centerLng +
     (nm * Math.sin(rad)) / Math.cos((centerLat * Math.PI) / 180);
-  const trackTrueDeg = norm360((rad * 180) / Math.PI + 90);
-  return payloadWithTrack({
+  const heading = norm360((rad * 180) / Math.PI + 90);
+  return payloadWithHeading({
     lat,
     lng,
-    trackTrueDeg,
+    heading,
     altitudeFt: 3500,
     speedKt: 185,
   });
@@ -107,12 +102,12 @@ export function getSamplePosition(opts?: {
     Number.isFinite(live.lat) &&
     Number.isFinite(live.lng)
   ) {
-    return payloadWithTrack(live);
+    return payloadWithHeading(live);
   }
-  return payloadWithTrack({
+  return payloadWithHeading({
     lat: 47.4502,
     lng: -122.3088,
-    trackTrueDeg: 270,
+    heading: 270,
     altitudeFt: 0,
     speedKt: 0,
   });
