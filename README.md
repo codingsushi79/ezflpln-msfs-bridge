@@ -93,17 +93,9 @@ If you build your **own** SimConnect client with the **MSFS SDK**, use the SDK d
 ## Payload (for `POST /api/plane-position`)
 
 ```json
-{
-  "lat": 37.62,
-  "lng": -122.38,
-  "heading": 145,
-  "altitudeFt": 4200,
-  "speedKt": 118
-}
+{ "lat": 37.62, "lng": -122.38, "heading": 145, "altitudeFt": 4200 }
 ```
 
-Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request.
+Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request. `heading` is **PLANE HEADING DEGREES TRUE** from SimConnect (0–360°, clockwise from true north) for the map icon. The bridge reads it as **INT32** so the SimConnect buffer stays aligned (using FLOAT64 for heading can mis-read adjacent fields and produce bogus values such as ~289° near longitude −71°).
 
-- **`heading`**: true heading of the aircraft nose (0–360°, clockwise from true north). SimConnect uses **`PLANE HEADING DEGREES TRUE`** so the map icon matches where the nose points.
-- **`speedKt`**: ground speed in knots from **`GROUND VELOCITY`** (ft/s converted).
-- **`altitudeFt`**: height MSL (feet). The server also accepts **`heightFt`** as an alias.
+Send **`trackTrueDeg`** / **`trackDeg`** only when you mean **ground track** (direction of motion); do not put nose heading in those fields. The web API maps **`trueHeadingDeg`** to **heading**, not track.

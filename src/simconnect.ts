@@ -49,11 +49,14 @@ export async function startSimConnectSession(
       null,
       SimConnectDataType.LATLONALT,
     );
+    // INT32 + readInt32 — MSFS packs heading as 32-bit; using FLOAT64 misaligns
+    // the buffer so the next reads can pick up longitude bits → bogus ~289°
+    // near Boston (-71° lon). Matches node-simconnect simulationVariablesRead sample.
     handle.addToDataDefinition(
       DEF_POS,
       "PLANE HEADING DEGREES TRUE",
-      "degrees",
-      SimConnectDataType.FLOAT64,
+      "Degrees",
+      SimConnectDataType.INT32,
     );
     handle.addToDataDefinition(
       DEF_POS,
@@ -73,11 +76,17 @@ export async function startSimConnectSession(
       if (recv.requestID !== REQ_POS) return;
       try {
         const pos = readLatLonAlt(recv.data);
-        const headingRaw = recv.data.readFloat64();
+        const headingRaw = recv.data.readInt32();
         const fps = recv.data.readFloat64();
-        const heading = Number.isFinite(headingRaw)
+        let heading: number | undefined = Number.isFinite(headingRaw)
           ? ((headingRaw % 360) + 360) % 360
           : undefined;
+        if (heading !== undefined) {
+          const lonH = ((pos.longitude % 360) + 360) % 360;
+          if (Math.abs(heading - lonH) < 0.75) {
+            heading = undefined;
+          }
+        }
         const speedKt = Number.isFinite(fps) ? fps * FPS_TO_KT : undefined;
         latest = payloadWithHeading({
           lat: pos.latitude,
