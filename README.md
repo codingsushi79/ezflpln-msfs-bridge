@@ -92,10 +92,25 @@ If you build your **own** SimConnect client with the **MSFS SDK**, use the SDK d
 
 ## Payload (for `POST /api/plane-position`)
 
+Schema **`schemaVersion`: `1`** (see `src/plane-report.ts`; must match `ezflpln/src/lib/bridge-plane-report.ts`).
+
 ```json
-{ "lat": 37.62, "lng": -122.38, "heading": 145, "altitudeFt": 4200 }
+{
+  "schemaVersion": 1,
+  "lat": 37.62,
+  "lng": -122.38,
+  "headingTrueDeg": 145,
+  "altitudeFt": 4200,
+  "groundSpeedKt": 118
+}
 ```
 
-Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request. `heading` is **PLANE HEADING DEGREES TRUE** (0–360°, clockwise from true north). `altitudeFt` is **PLANE ALTITUDE** in feet MSL (not the raw `STRUCT LATLONALT` altitude, which can disagree with indicated/MSL in MSFS). The bridge requests **position** (lat/lon) and **motion** (heading, ground speed, MSL altitude) in **separate** SimConnect data definitions so fields are not mis-read from a single packed buffer.
+Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request.
 
-Send **`trackTrueDeg`** / **`trackDeg`** only when you mean **ground track** (direction of motion); do not put nose heading in those fields. The web API maps **`trueHeadingDeg`** to **heading**, not track.
+- **`headingTrueDeg`**: **PLANE HEADING DEGREES TRUE** (0–360°, clockwise from true north).
+- **`altitudeFt`**: **PLANE ALTITUDE** in feet MSL (not raw `STRUCT LATLONALT` altitude, which can disagree with indicated/MSL in MSFS).
+- **`groundSpeedKt`**: from **GROUND VELOCITY** (ft/s → knots).
+
+The bridge requests **position** (lat/lon) and **motion** (heading, ground speed, MSL altitude) in **separate** SimConnect data definitions so fields are not mis-read from a single packed buffer.
+
+Optional **`trackTrueDeg`** is for ground track only if another client sends it; the bridge does not send it.

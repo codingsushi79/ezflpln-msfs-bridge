@@ -1,45 +1,33 @@
 import fs from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import {
+  type PlaneReportV1,
+  type PlaneSample,
+  serializePlaneReportV1,
+} from "./plane-report.js";
 
-export type Payload = {
-  lat: number;
-  lng: number;
-  /**
-   * True heading of the aircraft nose (degrees true, 0–360). Used for map
-   * icon rotation; from SimConnect `PLANE HEADING DEGREES TRUE`.
-   */
-  heading?: number;
-  /**
-   * True track over ground (optional). Not sent by the bridge; server may use
-   * it if another client supplies it.
-   */
-  trackTrueDeg?: number;
-  /** Altitude MSL in feet (`PLANE ALTITUDE` from the bridge). */
-  altitudeFt?: number;
-  /** Ground speed in knots (from SimConnect `GROUND VELOCITY`). */
-  speedKt?: number;
-};
+export type { PlaneSample } from "./plane-report.js";
 
 export function norm360(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
 
 /**
- * Normalize nose heading only (no `trackTrueDeg`) so the map aligns with the
- * aircraft nose, not ground track.
+ * Normalize optional nose heading; drops invalid values.
  */
-export function payloadWithHeading(
-  base: Omit<Payload, "trackTrueDeg" | "heading"> & {
-    heading?: number;
-    trackTrueDeg?: number;
+export function normalizeSample(
+  base: Omit<PlaneSample, "headingTrueDeg"> & {
+    headingTrueDeg?: number;
   },
-): Payload {
-  const { trackTrueDeg: _t, heading: rawH, ...rest } = base;
+): PlaneSample {
   const h =
-    rawH !== undefined && Number.isFinite(rawH) ? norm360(rawH) : undefined;
-  if (h === undefined) return rest as Payload;
-  return { ...rest, heading: h };
+    base.headingTrueDeg !== undefined && Number.isFinite(base.headingTrueDeg)
+      ? norm360(base.headingTrueDeg)
+      : undefined;
+  const { headingTrueDeg: _h, ...rest } = base;
+  if (h === undefined) return rest as PlaneSample;
+  return { ...rest, headingTrueDeg: h };
 }
 
 export const TOKEN_PATH =
@@ -71,7 +59,7 @@ export function isDemoOrbitFromEnv(): boolean {
   );
 }
 
-function getDemoOrbit(t: number): Payload {
+function getDemoOrbit(t: number): PlaneSample {
   const centerLat = 37.6213;
   const centerLng = -122.379;
   const nm = 0.02;
@@ -80,20 +68,20 @@ function getDemoOrbit(t: number): Payload {
   const lng =
     centerLng +
     (nm * Math.sin(rad)) / Math.cos((centerLat * Math.PI) / 180);
-  const heading = norm360((rad * 180) / Math.PI + 90);
-  return payloadWithHeading({
+  const headingTrueDeg = norm360((rad * 180) / Math.PI + 90);
+  return normalizeSample({
     lat,
     lng,
-    heading,
+    headingTrueDeg,
     altitudeFt: 3500,
-    speedKt: 185,
+    groundSpeedKt: 185,
   });
 }
 
 export function getSamplePosition(opts?: {
   demoOrbit?: boolean;
-  getLivePosition?: () => Payload | null;
-}): Payload {
+  getLivePosition?: () => PlaneSample | null;
+}): PlaneSample {
   const demo = opts?.demoOrbit ?? isDemoOrbitFromEnv();
   if (demo) return getDemoOrbit(Date.now());
   const live = opts?.getLivePosition?.();
@@ -102,14 +90,14 @@ export function getSamplePosition(opts?: {
     Number.isFinite(live.lat) &&
     Number.isFinite(live.lng)
   ) {
-    return payloadWithHeading(live);
+    return normalizeSample(live);
   }
-  return payloadWithHeading({
+  return normalizeSample({
     lat: 47.4502,
     lng: -122.3088,
-    heading: 270,
+    headingTrueDeg: 270,
     altitudeFt: 0,
-    speedKt: 0,
+    groundSpeedKt: 0,
   });
 }
 
@@ -146,8 +134,9 @@ export async function resolveTokenFromEnvOrFile(): Promise<string | null> {
 export async function postPosition(
   baseUrl: string,
   token: string,
-  body: Payload,
+  sample: PlaneSample,
 ): Promise<void> {
+  const body: PlaneReportV1 = serializePlaneReportV1(sample);
   const res = await fetch(`${baseUrl}/api/plane-position`, {
     method: "POST",
     headers: {
@@ -168,7 +157,7 @@ export function startPositionLoop(
   intervalMs: number,
   demoOrbit: boolean,
   onError: (e: Error) => void,
-  getLivePosition?: () => Payload | null,
+  getLivePosition?: () => PlaneSample | null,
 ): () => void {
   const tick = async () => {
     try {

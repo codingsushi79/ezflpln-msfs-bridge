@@ -1,5 +1,5 @@
 import type { RecvSimObjectData } from "node-simconnect";
-import { payloadWithHeading, type Payload } from "./bridge.js";
+import { normalizeSample, type PlaneSample } from "./bridge.js";
 
 /** SimConnect GROUND VELOCITY is feet per second; convert to knots. */
 const FPS_TO_KT = 0.592483801;
@@ -13,35 +13,35 @@ const REQ_MOTION = 2;
 const S = {
   lat: undefined as number | undefined,
   lng: undefined as number | undefined,
-  heading: undefined as number | undefined,
+  headingTrueDeg: undefined as number | undefined,
   altitudeFt: undefined as number | undefined,
-  speedKt: undefined as number | undefined,
+  groundSpeedKt: undefined as number | undefined,
 };
 
-let latest: Payload | null = null;
+let latest: PlaneSample | null = null;
 
 function resetState() {
   S.lat = undefined;
   S.lng = undefined;
-  S.heading = undefined;
+  S.headingTrueDeg = undefined;
   S.altitudeFt = undefined;
-  S.speedKt = undefined;
+  S.groundSpeedKt = undefined;
   latest = null;
 }
 
 function publish() {
   if (!Number.isFinite(S.lat) || !Number.isFinite(S.lng)) return;
-  latest = payloadWithHeading({
+  latest = normalizeSample({
     lat: S.lat!,
     lng: S.lng!,
-    heading: S.heading,
+    headingTrueDeg: S.headingTrueDeg,
     altitudeFt: S.altitudeFt,
-    speedKt: S.speedKt,
+    groundSpeedKt: S.groundSpeedKt,
   });
 }
 
 /** Latest user aircraft position from SimConnect, if connected. */
-export function getLiveSimPosition(): Payload | null {
+export function getLiveSimPosition(): PlaneSample | null {
   return latest;
 }
 
@@ -132,10 +132,10 @@ export async function startSimConnectSession(
           const fps = recv.data.readFloat64();
           const altFt = recv.data.readFloat64();
           if (Number.isFinite(headingRaw)) {
-            S.heading = ((headingRaw % 360) + 360) % 360;
+            S.headingTrueDeg = ((headingRaw % 360) + 360) % 360;
           }
           if (Number.isFinite(fps)) {
-            S.speedKt = fps * FPS_TO_KT;
+            S.groundSpeedKt = fps * FPS_TO_KT;
           }
           if (Number.isFinite(altFt)) {
             S.altitudeFt = altFt;
