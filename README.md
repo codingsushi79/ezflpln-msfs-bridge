@@ -93,7 +93,17 @@ If you build your **own** SimConnect client with the **MSFS SDK**, use the SDK d
 ## Payload (for `POST /api/plane-position`)
 
 ```json
-{ "lat": 37.62, "lng": -122.38, "heading": 145, "altitudeFt": 4200 }
+{
+  "lat": 37.62,
+  "lng": -122.38,
+  "trackTrueDeg": 145,
+  "heading": 145,
+  "altitudeFt": 4200,
+  "speedKt": 118
+}
 ```
 
-Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request. `heading` is true degrees (0–360, clockwise from north) for the map icon rotation.
+Include the bearer token from `EZFLPLN_TOKEN` or `~/.ezflpln/token` on every request.
+
+- **`trackTrueDeg`**: true track over ground (0–360°, clockwise from true north)—direction of motion, used for the map chevron. SimConnect uses **GPS GROUND TRUE TRACK**; **GROUND VELOCITY** is sent as **`speedKt`** (ground speed, knots). **`heading`** is duplicated to the same value for older clients that only read `heading`.
+- **`altitudeFt`**: height MSL (feet). You may also send **`heightFt`** as an alias on the server.

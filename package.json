@@ -1,6 +1,8 @@
 {
   "name": "ezflpln-msfs-bridge",
   "version": "0.1.0",
+  "description": "Desktop bridge linking EZ Flight Plan with Microsoft Flight Simulator: pair your account, install the in-sim addon, and stream live aircraft position over SimConnect.",
+  "author": "Sasha Baranov",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",

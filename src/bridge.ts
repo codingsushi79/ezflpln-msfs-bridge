@@ -5,9 +5,47 @@ import path from "node:path";
 export type Payload = {
   lat: number;
   lng: number;
+  /**
+   * True track over ground (degrees true): direction the aircraft is moving,
+   * not nose heading. Preferred for the map chevron.
+   */
+  trackTrueDeg?: number;
+  /**
+   * Legacy alias: same numeric value as `trackTrueDeg` when sent by this
+   * bridge (older clients may only read `heading`).
+   */
   heading?: number;
+  /** Height / altitude MSL in feet (from sim). */
   altitudeFt?: number;
+  /** Ground speed in knots. */
+  speedKt?: number;
 };
+
+export function norm360(deg: number): number {
+  return ((deg % 360) + 360) % 360;
+}
+
+/** Normalize lat/lng payload and duplicate track onto `heading` for legacy clients. */
+export function payloadWithTrack(
+  base: Omit<Payload, "trackTrueDeg" | "heading"> & {
+    trackTrueDeg?: number;
+    heading?: number;
+  },
+): Payload {
+  const track =
+    base.trackTrueDeg !== undefined && Number.isFinite(base.trackTrueDeg)
+      ? norm360(base.trackTrueDeg)
+      : base.heading !== undefined && Number.isFinite(base.heading)
+        ? norm360(base.heading)
+        : undefined;
+  const { trackTrueDeg: _t, heading: _h, ...rest } = base;
+  if (track === undefined) return rest as Payload;
+  return {
+    ...rest,
+    trackTrueDeg: track,
+    heading: track,
+  };
+}
 
 export const TOKEN_PATH =
   process.env.EZFLPLN_TOKEN_FILE ??
@@ -47,8 +85,14 @@ function getDemoOrbit(t: number): Payload {
   const lng =
     centerLng +
     (nm * Math.sin(rad)) / Math.cos((centerLat * Math.PI) / 180);
-  const heading = ((rad * 180) / Math.PI + 90) % 360;
-  return { lat, lng, heading, altitudeFt: 3500 };
+  const trackTrueDeg = norm360((rad * 180) / Math.PI + 90);
+  return payloadWithTrack({
+    lat,
+    lng,
+    trackTrueDeg,
+    altitudeFt: 3500,
+    speedKt: 185,
+  });
 }
 
 export function getSamplePosition(opts?: {
@@ -63,14 +107,15 @@ export function getSamplePosition(opts?: {
     Number.isFinite(live.lat) &&
     Number.isFinite(live.lng)
   ) {
-    return live;
+    return payloadWithTrack(live);
   }
-  return {
+  return payloadWithTrack({
     lat: 47.4502,
     lng: -122.3088,
-    heading: 270,
+    trackTrueDeg: 270,
     altitudeFt: 0,
-  };
+    speedKt: 0,
+  });
 }
 
 export async function redeemCodeAndSave(

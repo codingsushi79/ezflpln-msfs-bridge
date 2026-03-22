@@ -1,5 +1,8 @@
 import type { RecvSimObjectData } from "node-simconnect";
-import type { Payload } from "./bridge.js";
+import { payloadWithTrack, type Payload } from "./bridge.js";
+
+/** SimConnect GROUND VELOCITY is feet per second; convert to knots. */
+const FPS_TO_KT = 0.592483801;
 
 let latest: Payload | null = null;
 
@@ -48,8 +51,14 @@ export async function startSimConnectSession(
     );
     handle.addToDataDefinition(
       DEF_POS,
-      "PLANE HEADING DEGREES TRUE",
+      "GPS GROUND TRUE TRACK",
       "degrees",
+      SimConnectDataType.FLOAT64,
+    );
+    handle.addToDataDefinition(
+      DEF_POS,
+      "GROUND VELOCITY",
+      "feet per second",
       SimConnectDataType.FLOAT64,
     );
 
@@ -64,14 +73,19 @@ export async function startSimConnectSession(
       if (recv.requestID !== REQ_POS) return;
       try {
         const pos = readLatLonAlt(recv.data);
-        const headingRaw = recv.data.readFloat64();
-        const heading = ((headingRaw % 360) + 360) % 360;
-        latest = {
+        const trackRaw = recv.data.readFloat64();
+        const fps = recv.data.readFloat64();
+        const trackTrueDeg = Number.isFinite(trackRaw)
+          ? ((trackRaw % 360) + 360) % 360
+          : undefined;
+        const speedKt = Number.isFinite(fps) ? fps * FPS_TO_KT : undefined;
+        latest = payloadWithTrack({
           lat: pos.latitude,
           lng: pos.longitude,
-          heading,
+          trackTrueDeg,
           altitudeFt: pos.altitude,
-        };
+          speedKt,
+        });
       } catch {
         /* ignore malformed packets */
       }
