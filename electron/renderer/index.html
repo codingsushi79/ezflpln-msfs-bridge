@@ -77,9 +77,16 @@
           <button type="button" class="btn btn-secondary" id="btnDefaultMsfs">
             Use default folder
           </button>
-          <button type="button" class="btn btn-secondary" id="btnDownloadDll">
-            Download DLL from GitHub
-          </button>
+          <div class="dll-row">
+            <button type="button" class="btn btn-secondary" id="btnDownloadDll">
+              Download DLL from GitHub
+            </button>
+            <span
+              id="dllInstallStatus"
+              class="dll-install-status"
+              aria-live="polite"
+            ></span>
+          </div>
           <button type="button" class="link-small" id="openRepo">
             Repo
           </button>

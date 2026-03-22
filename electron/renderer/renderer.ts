@@ -97,6 +97,7 @@ async function init(): Promise<void> {
   const btnBrowseMsfs = $("btnBrowseMsfs") as HTMLButtonElement;
   const btnDefaultMsfs = $("btnDefaultMsfs") as HTMLButtonElement;
   const btnDownloadDll = $("btnDownloadDll") as HTMLButtonElement;
+  const dllInstallStatus = $("dllInstallStatus");
   const openRepo = $("openRepo") as HTMLButtonElement;
   const linkedStatus = $("linkedStatus");
   const btnClearLogin = $("btnClearLogin") as HTMLButtonElement;
@@ -142,14 +143,22 @@ async function init(): Promise<void> {
   btnDownloadDll.addEventListener("click", async () => {
     await api.setMsfsPath(msfsPathEl.value);
     btnDownloadDll.disabled = true;
+    dllInstallStatus.textContent = "Downloading…";
+    dllInstallStatus.classList.remove("ok", "err");
     try {
       const r = await api.downloadAddonDll();
       if (r.ok && r.savedPath) {
         appendLog(`DLL saved: ${r.savedPath}`);
-        statusEl.textContent = "DLL installed";
+        dllInstallStatus.textContent = "DLL installed";
+        dllInstallStatus.classList.remove("err");
+        dllInstallStatus.classList.add("ok");
       } else {
-        appendLog(r.error ?? "Download failed");
-        statusEl.textContent = r.error ?? "Download failed";
+        const msg = r.error ?? "Download failed";
+        appendLog(msg);
+        dllInstallStatus.textContent =
+          msg.length > 48 ? `${msg.slice(0, 45)}…` : msg;
+        dllInstallStatus.classList.remove("ok");
+        dllInstallStatus.classList.add("err");
       }
     } finally {
       btnDownloadDll.disabled = false;
