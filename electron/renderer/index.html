@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EZ Flight Plan Bridge</title>
+    <link rel="stylesheet" href="renderer.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="logo">✈</div>
+        <div>
+          <h1>EZ Flight Plan Bridge</h1>
+          <p class="tagline">Live position → your flight plan map</p>
+        </div>
+      </header>
+
+      <section class="card">
+        <label class="label" for="baseUrl">ezflpln site URL</label>
+        <input
+          id="baseUrl"
+          type="url"
+          class="input"
+          placeholder="https://… or http://localhost:3000"
+          autocomplete="url"
+        />
+        <button type="button" class="link-small" id="openSite">
+          Open site in browser
+        </button>
+      </section>
+
+      <section class="card">
+        <label class="label" for="msfsPath">MSFS Community folder</label>
+        <p class="hint compact">
+          Select the <strong>Community</strong> folder (Store or Steam install). The app
+          downloads the addon DLL from GitHub into a subfolder there.
+        </p>
+        <div class="row-input">
+          <input
+            id="msfsPath"
+            type="text"
+            class="input mono small"
+            placeholder="e.g. …\Community"
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <button type="button" class="btn btn-outline btn-shrink" id="btnBrowseMsfs">
+            Browse…
+          </button>
+        </div>
+        <div class="addon-actions">
+          <button type="button" class="btn btn-secondary" id="btnDownloadDll">
+            Download addon DLL from GitHub
+          </button>
+          <button type="button" class="link-small" id="openRepo">
+            Open repo
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <label class="label" for="code">Bridge code (from website → signed in)</label>
+        <input
+          id="code"
+          type="text"
+          class="input mono"
+          maxlength="8"
+          placeholder="6 characters"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <button type="button" class="btn btn-secondary" id="btnPair">
+          Link account
+        </button>
+      </section>
+
+      <section class="card row">
+        <label class="check">
+          <input type="checkbox" id="demoOrbit" />
+          <span>Demo orbit (no simulator — test map only)</span>
+        </label>
+        <p class="hint">
+          With demo off on <strong>Windows</strong>, position comes from
+          <strong>SimConnect</strong> (start MSFS first). If the sim is not
+          running, a placeholder position is sent until SimConnect connects.
+        </p>
+      </section>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="btnStart">
+          Start sending
+        </button>
+        <button type="button" class="btn btn-outline" id="btnStop" disabled>
+          Stop
+        </button>
+      </div>
+
+      <p class="status" id="status">Idle</p>
+
+      <section class="log-wrap">
+        <div class="log-label">Log</div>
+        <pre class="log" id="log" aria-live="polite"></pre>
+      </section>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

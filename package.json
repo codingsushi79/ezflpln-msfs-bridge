@@ -3,23 +3,43 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "dist-electron/main.cjs",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "demo": "cross-env DEMO_ORBIT=1 tsx src/index.ts",
     "demo:build": "cross-env DEMO_ORBIT=1 node dist/index.js",
-    "bundle:cjs": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=cjs --outfile=build/bridge.cjs",
-    "build:exe": "npm run bundle:cjs && pkg build/bridge.cjs --targets node18-win-x64 --output release/ezflpln-msfs-bridge.exe"
+    "electron:build": "node scripts/build-electron.mjs",
+    "electron:dev": "npm run electron:build && electron .",
+    "dist:win": "npm run electron:build && electron-builder --win portable --x64"
   },
   "dependencies": {
+    "node-simconnect": "^4.0.0",
     "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@types/node": "^20",
     "cross-env": "^7.0.3",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
     "esbuild": "^0.27.4",
-    "pkg": "^5.8.1",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.ezflpln.msfs-bridge",
+    "productName": "EZ Flight Plan Bridge",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    }
   }
 }
